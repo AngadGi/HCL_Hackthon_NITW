@@ -1,100 +1,86 @@
-# HCL_Hackthon_NITW
 # 📊 Credit Risk Scoring System
 
 ## 🧠 Project Overview
 
-This project implements an **end-to-end Credit Risk Scoring System** using machine learning to predict the likelihood of a loan applicant defaulting. The solution is designed to help financial institutions make **data-driven, transparent, and fair lending decisions**.
-
-The project covers the complete pipeline from **data ingestion and cleaning**, through **exploratory data analysis (EDA)** and **feature engineering**, to **model training, validation, explainability**, and finally **business-facing visualization using Power BI**.
+This project implements a **full end-to-end Credit Risk Scoring System** aligned exactly with the implemented notebook/code. It covers **data ingestion from multiple sources, synthetic transaction enrichment, rigorous EDA, feature engineering, statistical feature selection (VIF, WOE/IV), multiple model families, imbalance handling, hyper-parameter optimization (RandomizedSearch & Optuna), and business-grade evaluation (ROC-AUC, KS, Gini)**, followed by Power BI consumption.
 
 ---
 
 ## 🎯 Business Objective
 
-The primary goals of this project are:
+* Predict probability of **loan default** at customer–loan level
+* Reduce credit losses while maintaining approval quality
+* Build a **regulator-friendly, explainable** scorecard-style solution
+* Produce outputs ready for **Power BI dashboards**
 
-* Identify **high-risk loan applicants early** to reduce defaults
-* Increase approval rates for **creditworthy customers**
-* Provide **explainable and interpretable** risk scores
-* Enable **portfolio risk monitoring** using dashboards
-* Ensure **fairness and bias checks** across demographic groups
+Target variable:
 
----
-
-## 🗂️ Dataset Description
-
-After merging customer, loan, and bureau-level data, the final dataset contains **42,003 records** with the following columns:
-
-### Key Column Groups
-
-**Identifiers**
-
-* `cust_id`
-* `loan_id`
-
-**Customer Demographics**
-
-* `age`
-* `gender`
-* `marital_status`
-* `employment_status`
-* `income`
-* `number_of_dependants`
-* `residence_type`
-* `years_at_current_address`
-* `city`, `state`, `zipcode`
-
-**Loan Information**
-
-* `loan_purpose`
-* `loan_type`
-* `sanction_amount`
-* `loan_amount`
-* `processing_fee`
-* `gst`
-* `net_disbursement`
-* `loan_tenure_months`
-* `principal_outstanding`
-* `disbursal_date`
-* `installment_start_dt`
-
-**Credit & Behavioral Features**
-
-* `bank_balance_at_application`
-* `number_of_open_accounts`
-* `number_of_closed_accounts`
-* `total_loan_months`
-* `delinquent_months`
-* `total_dpd`
-* `enquiry_count`
-* `credit_utilization_ratio`
-
-**Target Variable**
-
-* `default` (Boolean: 1 = Default, 0 = Non-default)
+* `default` → 1 = defaulted, 0 = non-default
 
 ---
 
-## 🔁 Project Workflow
+## 🗂️ Data Sources (Exact to Code)
+
+### 1️⃣ Customers (`customers.csv`)
+
+Customer demographics and residence details
+
+### 2️⃣ Loans (`loans.csv`)
+
+Loan characteristics, amounts, tenure, dates
+
+### 3️⃣ Bureau (`bureau_data.csv`)
+
+Credit behavior, delinquency, utilization
+
+### 4️⃣ Synthetic Transactions (Generated in Code)
+
+Created to enrich behavioral risk signals:
+
+* `monthly_inflow`
+* `monthly_spend`
+* `avg_monthly_balance`
+* `past_loan_count`
+* `past_defaults`
+* `loan_performance_rating`
+* `credit_score`
+
+Synthetic data generation is **controlled using a fixed random seed** for reproducibility.
+
+---
+
+## 🔁 End-to-End Workflow
 
 ```
-Data Ingestion
+Load Raw Data (CSV)
+   ↓
+Generate Synthetic Transaction Data
+   ↓
+Merge All Sources on cust_id
    ↓
 Data Cleaning & Validation
    ↓
-Exploratory Data Analysis (EDA)
+Outlier Detection & Treatment
+   ↓
+EDA (Automated, Loop-based)
    ↓
 Feature Engineering
    ↓
-Encoding & Feature Selection
+Feature Selection (VIF + IV)
    ↓
-Model Training
+Encoding & Scaling
    ↓
-Model Evaluation (AUC, KS)
+Train / Test Split
    ↓
-Explainability & Fairness Checks
+Model Training (LR, RF, XGB, LGBM)
    ↓
-Export Predictions
+Hyperparameter Optimization
+   ↓
+Imbalance Handling (Under / Over Sampling)
+   ↓
+Final Model Selection
+   ↓
+Evaluation (ROC, KS, Gini)
    ↓
 Power BI Dashboard
 ```
@@ -103,150 +89,206 @@ Power BI Dashboard
 
 ## 🧹 Data Cleaning & Validation
 
-* Verified data types and schema
-* Confirmed **no missing values** in raw data
-* Removed duplicate records
-* Converted date columns to `datetime`
-* Handled invalid and negative date differences
-* Addressed NaNs introduced during feature engineering using **safe division** and imputation
+Steps performed:
+
+* Converted `default` to integer
+* Checked missing values using `% null`
+* Imputed `residence_type` with **mode**
+* Verified **no duplicate rows**
+* Identified continuous vs categorical features
+
+### Outlier Treatment
+
+* Visualized all numerical features using **loop-based boxplots**
+* Business rule applied:
+
+  * Removed records where `processing_fee > 3% of loan_amount`
 
 ---
 
 ## 📊 Exploratory Data Analysis (EDA)
 
-EDA was performed **systematically using loops** to ensure full coverage:
+EDA was performed **systematically using loops**, not cherry-picked columns.
 
-### Univariate Analysis
+### Continuous Variables
 
-* Distribution of all numerical features (histograms)
-* Frequency distribution of all categorical features
+* KDE plots for **every numeric feature**
+* Compared distributions for `default = 0` vs `default = 1`
 
-### Bivariate Analysis
+### Key Observations
 
-* Numerical features vs `default` using boxplots
-* Categorical features vs `default` using stacked bar charts
+* Defaulters show:
 
-### Key Insights
-
-* Higher `total_dpd`, `delinquent_months`, and `credit_utilization_ratio` are strongly associated with default
-* Lower `bank_balance_at_application` correlates with higher risk
-* Certain loan purposes and employment categories show higher default rates
+  * Higher `total_dpd` and `delinquent_months`
+  * Higher `credit_utilization_ratio`
+  * Higher `loan_to_income` ratios
+  * Lower balances and unstable inflow-spend patterns
 
 ---
 
-## 🏗️ Feature Engineering
+## 🏗️ Feature Engineering (As Implemented)
 
-Domain-driven features were created to capture financial stress and credit behavior:
+| Feature                   | Business Meaning             |
+| ------------------------- | ---------------------------- |
+| `loan_to_income`          | Affordability risk           |
+| `delinquency_ratio`       | Severity of past delinquency |
+| `avg_dpd_per_delinquency` | Depth of default behavior    |
+| `monthly_spent_r`         | Cash-flow stress             |
 
-* `loan_to_income_ratio`
-* `balance_to_loan_ratio`
-* `avg_dpd`
-* `has_delinquency`
-* `high_enquiry_flag`
-* `long_credit_history`
-* `days_to_first_installment`
-
-All division-based features were created using **safe division** to avoid NaNs and infinities.
+All ratios were created carefully to avoid divide-by-zero issues.
 
 ---
 
-## 🔢 Feature Encoding & Selection
+## 🔢 Feature Selection
 
-* One-hot encoding applied to all categorical variables
-* Dropped identifier columns (`cust_id`, `loan_id`) to prevent leakage
-* Final feature matrix contained only numerical, model-ready variables
+### 1️⃣ Multicollinearity (VIF)
+
+* Applied **MinMax scaling** to numeric features
+* Removed high-VIF variables such as:
+
+  * `credit_score`, `monthly_inflow`, `avg_monthly_balance`, etc.
+
+### 2️⃣ Predictive Power (WOE & IV)
+
+* IV calculated for **every feature**
+* Numerical features were **binned** before IV calculation
+* Features retained only if:
+
+  * `IV > 0.02`
+
+This ensures **stable and interpretable credit models**.
+
+---
+
+## 🔄 Encoding & Scaling
+
+* One-hot encoding applied using `pd.get_dummies(drop_first=True)`
+* Final dataset contains only **model-ready numeric features**
 
 ---
 
 ## 🤖 Model Training
 
-### Baseline Model
+Models trained and compared:
 
-* **Logistic Regression** (with standard scaling)
-* Used for interpretability and benchmarking
+* Logistic Regression (baseline & scorecard-friendly)
+* Random Forest
+* XGBoost
+* LightGBM
 
-### Final Model
-
-* **LightGBM Classifier**
-* Selected due to:
-
-  * Strong performance on tabular data
-  * Ability to handle non-linear relationships
-  * Native handling of missing values
+Train/Test split: **80 / 20 (stratified)**
 
 ---
 
-## 📈 Model Evaluation
+## ⚖️ Class Imbalance Handling
 
-Models were evaluated on a stratified 80/20 train-test split using:
+Since default events are minority:
 
-* **AUC-ROC**: Measures overall discriminatory power
-* **KS Statistic**: Measures maximum separation between defaulters and non-defaulters
-* **Confusion Matrix**: Evaluated classification trade-offs
+### Techniques Used
 
-> KS values above 0.30 and AUC values above 0.80 indicate strong credit risk models.
+* Random Under Sampling
+* SMOTE-Tomek (Hybrid over + clean)
 
----
-
-## 🔍 Explainability
-
-* Feature importance extracted from LightGBM
-* Top risk drivers included:
-
-  * `total_dpd`
-  * `delinquent_months`
-  * `credit_utilization_ratio`
-  * `loan_to_income_ratio`
-
-This ensures **transparent and regulator-friendly** decision-making.
+Models were retrained on balanced data and evaluated on original test set.
 
 ---
 
-## ⚖️ Fairness & Bias Check
+## 🔍 Hyperparameter Optimization
 
-* Average predicted risk was compared across **gender groups**
-* No disproportionate risk assignment observed
-* Confirms fairness and ethical compliance
+### RandomizedSearchCV
+
+* Logistic Regression
+* XGBoost
+* LightGBM
+
+### Optuna
+
+* Logistic Regression optimized using:
+
+  * F1-macro score
+  * Cross-validation
+
+Final Logistic model selected based on **stability + interpretability**.
 
 ---
 
-## 📤 Output Artifacts
+## 📈 Model Evaluation Metrics
 
-* `credit_risk_model.pkl` → Trained LightGBM model
-* `credit_risk_predictions.csv` → Predictions with risk scores
+| Metric             | Purpose                            |
+| ------------------ | ---------------------------------- |
+| Accuracy           | Overall correctness                |
+| Precision / Recall | Risk trade-off                     |
+| ROC-AUC            | Rank ordering ability              |
+| KS Statistic       | Credit separation power            |
+| Gini               | Industry standard scorecard metric |
 
-These outputs are directly used in **Power BI dashboards**.
+### Final Performance
+
+* Strong ROC-AUC
+* High KS separation across deciles
+* Stable coefficients with economic intuition
 
 ---
 
-## 📊 Power BI Dashboard
+## 📊 Decile & KS Analysis
 
-The Power BI dashboard includes:
+* Customers segmented into **10 risk deciles**
+* Computed:
 
-* Portfolio KPIs (Total customers, Avg risk, Default rate)
-* Risk score distribution histogram
-* Risk bucket segmentation
-* Model performance metrics (AUC, KS)
-* Feature insights
-* Fairness visualization (Risk by gender)
+  * Event / Non-event rates
+  * Cumulative distributions
+  * KS statistic
+
+This validates **business usability of the score**.
+
+---
+
+## 🔎 Explainability
+
+* Logistic regression coefficients extracted
+* Positive coefficients → higher default risk
+* Feature importance visualized using bar plots
+
+Ensures **audit-ready and regulator-compliant** modeling.
+
+---
+
+## 📤 Outputs for Power BI
+
+Exported artifacts:
+
+* Customer-level default probability
+* Decile assignment
+* KS & Gini statistics
+
+### Power BI Dashboard Includes
+
+* Portfolio KPIs
+* Risk distribution
+* Decile-wise default rates
+* Feature impact summary
+* Model performance visuals
 
 ---
 
 ## 🛠️ Tech Stack
 
-* **Language**: Python
-* **Libraries**: Pandas, NumPy, Seaborn, Matplotlib, Scikit-learn, LightGBM
-* **Visualization**: Power BI
-* **Model Persistence**: Joblib
+* Python
+* Pandas, NumPy
+* Matplotlib, Seaborn
+* Scikit-learn
+* XGBoost, LightGBM
+* Optuna
+* Power BI
 
 ---
 
 ## 📌 Conclusion
 
-This project demonstrates a **production-style credit risk modeling pipeline**, combining robust data processing, strong predictive modeling, explainability, and business-focused visualization. The solution is scalable, interpretable, and suitable for real-world financial risk assessment.
+This project demonstrates a **production-grade credit risk modeling pipeline**, following industry best practices used in banks and NBFCs. It balances **predictive performance, interpretability, and business relevance**, making it suitable for real-world deployment.
 
 ---
 
 ## 👤 Author
 
-Developed as part of a **Data Science Hackathon** to demonstrate end-to-end machine learning, risk analytics, and business intelligence skills.
+Developed as part of a **Data Science Hackathon** showcasing end-to-end credit risk analytics and machine learning expertise.
